@@ -1,0 +1,63 @@
+# Smart Home Matter Starter — Dashboard Configuration
+
+server:
+  host: "0.0.0.0"
+  port: 5000
+  debug: false
+
+# Home Assistant API
+homeassistant:
+  url: "http://localhost:8123"
+  token: ""  # Long-lived access token — set via HA_TOKEN env var
+  poll_interval_sec: 2
+
+# OTBR REST API (Thread Border Router)
+otbr:
+  url: "http://localhost:8081"
+  poll_interval_sec: 5
+
+# Sensor node mapping
+# Maps Matter entity IDs to room names and positions
+# NOTE: Entity IDs are assigned by HA during Matter commissioning.
+#       Update these after commissioning your boards.
+nodes:
+  - id: "sparkfun-thingplus"
+    room: "Hallway"
+    ha_temp_entity: "sensor.matter_device_temperature_2"
+    ha_occupancy_entity: "binary_sensor.matter_device_occupancy_2"
+    ha_humidity_entity: "sensor.matter_device_humidity"
+    grid_eye_count: 1
+    floor_x: 0.5    # Normalized position on floor plan (0-1)
+    floor_y: 0.3
+
+  - id: "nano-matter"
+    room: "Living Room"
+    ha_temp_entity: "sensor.matter_device_temperature"
+    ha_occupancy_entity: "binary_sensor.matter_device_occupancy"
+    grid_eye_count: 1
+    floor_x: 0.2
+    floor_y: 0.6
+
+# Floor plan configuration
+floorplan:
+  width: 800
+  height: 600
+  rooms:
+    - name: "Hallway"
+      x: 300
+      y: 50
+      width: 200
+      height: 200
+
+    - name: "Living Room"
+      x: 50
+      y: 250
+      width: 250
+      height: 300
+
+# Heatmap rendering
+heatmap:
+  temp_min: 18.0   # °C — cold end of color scale
+  temp_max: 35.0   # °C — hot end of color scale
+  interpolation: 16 # 8→16 bilinear interpolation
+  colormap: "inferno" # inferno, plasma, magma, viridis

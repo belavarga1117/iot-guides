@@ -1,0 +1,323 @@
+/* Smart Home Matter Starter — Dark Theme Dashboard Styles */
+/* Optimized for RPi 7" touch display (800×480) */
+
+:root {
+  --bg-primary: #0a0a0f;
+  --bg-secondary: #12121a;
+  --bg-card: #1a1a2e;
+  --text-primary: #e0e0e0;
+  --text-secondary: #888;
+  --accent: #00d4ff;
+  --occupied: #ff4444;
+  --empty: #44ff88;
+  --warning: #ffaa00;
+  --border: #2a2a3e;
+  --mesh-link: #00d4ff;
+  --mesh-node: #ffffff;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 14px;
+  overflow-x: hidden;
+}
+
+/* --- Header --- */
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+}
+
+header h1 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: 1px;
+}
+
+#status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.status-dot.online {
+  background: var(--empty);
+  box-shadow: 0 0 6px var(--empty);
+}
+
+.status-dot.offline {
+  background: var(--occupied);
+  box-shadow: 0 0 6px var(--occupied);
+}
+
+/* --- Main Layout --- */
+main {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  grid-template-rows: 1fr auto;
+  gap: 12px;
+  padding: 12px;
+  height: calc(100vh - 80px);
+}
+
+#floorplan-section {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+#mesh-section {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+#rooms-section {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+
+section h2 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+/* --- Floor Plan / Heatmap --- */
+#floorplan-container {
+  position: relative;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  height: calc(100% - 24px);
+}
+
+#floorplan-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+}
+
+#heatmap-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  opacity: 0.7;
+}
+
+/* --- Mesh Topology --- */
+#mesh-container {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  height: calc(100% - 60px);
+  overflow: hidden;
+}
+
+#mesh-svg {
+  width: 100%;
+  height: 100%;
+}
+
+#mesh-info {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 8px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+/* --- Room Cards --- */
+#room-cards {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.room-card {
+  flex: 0 0 180px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  transition: all 0.3s ease;
+}
+
+.room-card h3 {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.room-card.occupied {
+  border-color: var(--occupied);
+  box-shadow: 0 0 12px rgba(255, 68, 68, 0.2);
+}
+
+.room-card.occupied h3 {
+  color: var(--occupied);
+}
+
+.room-card.empty {
+  border-color: var(--empty);
+  box-shadow: 0 0 8px rgba(68, 255, 136, 0.1);
+}
+
+.room-card.empty h3 {
+  color: var(--empty);
+}
+
+.card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.temp-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.occupancy-value {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.room-card.occupied .occupancy-value {
+  color: var(--occupied);
+}
+
+.room-card.empty .occupancy-value {
+  color: var(--empty);
+}
+
+.node-info {
+  font-size: 10px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+/* --- Footer --- */
+footer {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 16px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  border-top: 1px solid var(--border);
+}
+
+/* --- Mesh Node Styles (SVG) --- */
+.mesh-node circle {
+  fill: var(--mesh-node);
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.mesh-node.router circle {
+  fill: var(--accent);
+  r: 8;
+}
+
+.mesh-node.leader circle {
+  fill: var(--warning);
+  r: 10;
+  stroke: var(--warning);
+}
+
+.mesh-node.end-device circle {
+  fill: var(--text-secondary);
+  r: 5;
+}
+
+.mesh-node.border-router circle {
+  fill: var(--empty);
+  r: 10;
+  stroke: var(--empty);
+}
+
+.mesh-link {
+  stroke: var(--mesh-link);
+  stroke-opacity: 0.4;
+  stroke-width: 1.5;
+  transition: stroke-opacity 0.5s ease;
+}
+
+.mesh-link.quality-3 { stroke-opacity: 0.8; stroke-width: 2.5; }
+.mesh-link.quality-2 { stroke-opacity: 0.6; stroke-width: 2; }
+.mesh-link.quality-1 { stroke-opacity: 0.4; stroke-width: 1.5; }
+.mesh-link.quality-0 { stroke-opacity: 0.2; stroke-width: 1; }
+
+.mesh-label {
+  fill: var(--text-secondary);
+  font-size: 9px;
+  text-anchor: middle;
+}
+
+/* --- Animations --- */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.room-card.occupied .temp-value {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* --- Responsive for 7" RPi display (800x480) --- */
+@media (max-width: 800px) {
+  main {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 200px auto;
+  }
+
+  #mesh-section {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  #rooms-section {
+    grid-column: 1;
+    grid-row: 3;
+  }
+
+  .room-card {
+    flex: 0 0 140px;
+    padding: 8px;
+  }
+
+  .temp-value {
+    font-size: 20px;
+  }
+}

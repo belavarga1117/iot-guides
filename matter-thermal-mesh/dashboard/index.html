@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HeatSense</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; background: #09090f; overflow: hidden; }
+    canvas { display: block; position: fixed; top: 0; left: 0; }
+
+    /* Connection status dot — bottom-right corner */
+    #dot {
+      position: fixed; bottom: 14px; right: 14px;
+      width: 7px; height: 7px; border-radius: 50%;
+      background: #252535; transition: background 1.5s;
+      z-index: 10;
+    }
+    #dot.live { background: #2d6b3a; }
+    #dot.demo { background: #2d2d6b; }
+    #dot.err  { background: #6b2d2d; }
+
+    /* Watermark — bottom-left */
+    #watermark {
+      position: fixed; bottom: 12px; left: 14px;
+      font: 10px/1 'Helvetica Neue', Helvetica, sans-serif;
+      color: rgba(255,255,255,0.18);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      z-index: 10;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="c"></canvas>
+  <div id="dot"></div>
+  <div id="watermark">Presence · Matter over Thread</div>
+
+<script>
+// ─── Home Assistant Config ────────────────────────────────────────────────────
+const HA_WS  = 'ws://192.168.1.111:8123/api/websocket';
+const HA_TOK = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiIyODZjNDQ0OWE2OGM0N2FlYTcyMDhiMjE1NGFiZGU2MCIsImlhdCI6MTc3MjQ0ODk1NCwiZXhwIjoyMDg3ODA4OTU0fQ.PS9pd6Dj8qJKxOEAdoKWL_sVz9EvZLBgxCgv7pyr-nc';
+
+// ─── Floor Plan Coordinate Space ─────────────────────────────────────────────
+// All room/sensor coords defined in a 900×680 logical space; scaled to viewport.
+const FP_W = 900, FP_H = 680;
+
+// ─── Room Definitions ─────────────────────────────────────────────────────────
+// sensor: which sensor id covers this room (null = no sensor, e.g. corridor)
+const ROOMS = [
+  { x: 20,  y: 20,  w: 360, h: 265, label: 'Bedroom 1',   sensor: 'r2' },
+  { x: 420, y: 20,  w: 360, h: 265, label: 'Bedroom 2',   sensor: 'br' },
+  { x: 100, y: 285, w: 600, h: 70,  label: '',             sensor: null },  // Corridor
+  { x: 60,  y: 355, w: 760, h: 285, label: 'Living Room',  sensor: 'lr' },
+];
+
+// ─── Sensor Definitions ───────────────────────────────────────────────────────
+// fov: pointing direction in degrees (0°=N/up, 90°=E/right, 180°=S/down, 270°=W/left)
+// fovW: total FOV width (Grid-EYE AMG8833 = 60°)
+// range: cone extent in floor-plan pixels
+const SENSORS = [
+  {
+    id:    'r2',
+    x:     200, y: 38,           // north wall of 06 Szoba, facing south (into room)
+    fov:   180, fovW: 60, range: 210,
+    color: '#44cc88',
+    occ:   'binary_sensor.matter_device_occupancy',   // SparkFun #2 — node 15
+  },
+  {
+    id:    'br',
+    x:     600, y: 38,           // north wall of 07 Szoba, facing south (into room)
+    fov:   180, fovW: 60, range: 210,
+    color: '#7c7cff',
+    occ:   'binary_sensor.matter_device_occupancy_5', // Nano Matter — node 17
+  },
+  {
+    id:    'lr',
+    x:     440, y: 628,          // south wall of Nappali, facing north (into room)
+    fov:   0,   fovW: 60, range: 250,
+    color: '#ff6b35',
+    occ:   'binary_sensor.matter_device_occupancy_4', // SparkFun #1 — node 16
+  },
+];
+
+// ─── Occupancy State ──────────────────────────────────────────────────────────
+// 'on' | 'off' | null (null = unavailable/unknown)
+const occ = {};
+SENSORS.forEach(s => { occ[s.id] = null; });
+
+// ─── Room Heat State ──────────────────────────────────────────────────────────
+// Per-room heat value 0.0–1.0, lerped toward occupancy target.
+// Warms up quickly (person detected), cools down slowly (thermal inertia feel).
+const roomHeat = ROOMS.map(() => 0);
+const HEAT_WARM_SPEED = 0.028;  // fast warmup: person detected → room heats in ~1.5s
+const HEAT_COOL_SPEED = 0.006;  // slow cooldown: thermal inertia, room cools over ~8s
+
+function updateHeat() {
+  ROOMS.forEach((r, i) => {
+    const sid    = r.sensor;
+    const target = sid && occ[sid] === 'on' ? 1.0 : 0.0;
+    const speed  = target > roomHeat[i] ? HEAT_WARM_SPEED : HEAT_COOL_SPEED;
+    roomHeat[i] += (target - roomHeat[i]) * speed;
+  });
+}
+
+// ─── Canvas Setup ─────────────────────────────────────────────────────────────
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+let W, H, dpr, scale, ox, oy;
+
+function resize() {
+  dpr = window.devicePixelRatio || 1;
+  W   = window.innerWidth  * dpr;
+  H   = window.innerHeight * dpr;
+  canvas.width  = W;
+  canvas.height = H;
+  canvas.style.width  = window.innerWidth  + 'px';
+  canvas.style.height = window.innerHeight + 'px';
+
+  // Fit floor plan centered with padding
+  const pad = 52 * dpr;
+  scale = Math.min((W - pad * 2) / FP_W, (H - pad * 2) / FP_H);
+  ox    = (W - FP_W * scale) / 2;
+  oy    = (H - FP_H * scale) / 2;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// Floor-plan to canvas coordinate helpers
+const fp  = (x, y) => [ox + x * scale, oy + y * scale];
+const fpr = r       => r * scale;  // scale a radius/distance value
+
+// Hex color to rgba() string
+function rgba(hex, a) {
+  const r = parseInt(hex.slice(1,3), 16);
+  const g = parseInt(hex.slice(3,5), 16);
+  const b = parseInt(hex.slice(5,7), 16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+// ─── Draw: Room Base Fills ────────────────────────────────────────────────────
+function drawRoomBase() {
+  ROOMS.forEach(r => {
+    const [x, y] = fp(r.x, r.y);
+    ctx.fillStyle = '#111120';
+    ctx.fillRect(x, y, r.w * scale, r.h * scale);
+  });
+}
+
+// ─── Draw: Thermal Glow ───────────────────────────────────────────────────────
+// Draws a warm radial gradient clipped to the room rectangle.
+// Color: dark amber → orange-red core, fading inward to edge.
+// Pulses gently at max heat to simulate thermal breathing.
+function drawRoomGlow() {
+  ROOMS.forEach((r, i) => {
+    const heat = roomHeat[i];
+    if (heat < 0.008) return;  // invisible — skip
+
+    // Slow pulse when at high heat (breathing effect for GIF)
+    const pulse     = 0.88 + 0.12 * Math.sin(frame * 0.032);
+    const intensity = heat * (heat > 0.85 ? pulse : 1.0);
+
+    const [rx, ry] = fp(r.x, r.y);
+    const rw = r.w * scale;
+    const rh = r.h * scale;
+    const cx = rx + rw / 2;
+    const cy = ry + rh / 2;
+
+    // Radius slightly larger than room diagonal to fill corners
+    const radius = Math.sqrt(rw * rw + rh * rh) * 0.62;
+
+    // Thermal color scale: hot core (orange-red) → warm amber → fades out
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+    g.addColorStop(0,    `rgba(255, 80,  10, ${intensity * 0.50})`);
+    g.addColorStop(0.25, `rgba(255, 110, 20, ${intensity * 0.38})`);
+    g.addColorStop(0.55, `rgba(220, 90,  15, ${intensity * 0.20})`);
+    g.addColorStop(0.80, `rgba(180, 60,   5, ${intensity * 0.08})`);
+    g.addColorStop(1,    `rgba(160, 50,   0, 0)`);
+
+    // Clip to room bounds so glow doesn't bleed into adjacent rooms
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(rx, ry, rw, rh);
+    ctx.clip();
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.fillStyle = g;
+    ctx.fill();
+
+    ctx.restore();
+  });
+}
+
+// ─── Draw: Wall Outlines ──────────────────────────────────────────────────────
+// Bedroom bottom walls have door gaps (two actual doors in the floor plan).
+// Corridor draws only its side walls — top is shared with bedrooms (already drawn),
+// bottom is open (no wall drawn = open passage to Nappali).
+function drawWalls() {
+  // Draw one wall segment in floor-plan coords, heat-tinted by room index.
+  function seg(x1, y1, x2, y2, idx) {
+    const h = roomHeat[idx];
+    ctx.strokeStyle = `rgba(${Math.round(44+h*80)},${Math.round(44+h*20)},${Math.round(68-h*20)},${0.22+h*0.28})`;
+    ctx.lineWidth   = 1.8 * dpr;
+    const [ax, ay] = fp(x1, y1);
+    const [bx, by] = fp(x2, y2);
+    ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+  }
+
+  const hw = DOOR_W / 2;
+
+  // ── 06 Szoba (index 0): top + left + right full, bottom with Door A gap ──
+  const R0 = ROOMS[0];
+  seg(R0.x,          R0.y,        R0.x+R0.w,       R0.y,        0); // top
+  seg(R0.x,          R0.y,        R0.x,             R0.y+R0.h,   0); // left
+  seg(R0.x+R0.w,     R0.y,        R0.x+R0.w,        R0.y+R0.h,   0); // right
+  seg(R0.x,          R0.y+R0.h,   DOORS.r2.x-hw,    R0.y+R0.h,   0); // bottom left of door
+  seg(DOORS.r2.x+hw, R0.y+R0.h,   R0.x+R0.w,        R0.y+R0.h,   0); // bottom right of door
+
+  // ── 07 Szoba (index 1): top + left + right full, bottom with Door B gap ──
+  const R1 = ROOMS[1];
+  seg(R1.x,          R1.y,        R1.x+R1.w,       R1.y,        1); // top
+  seg(R1.x,          R1.y,        R1.x,             R1.y+R1.h,   1); // left
+  seg(R1.x+R1.w,     R1.y,        R1.x+R1.w,        R1.y+R1.h,   1); // right
+  seg(R1.x,          R1.y+R1.h,   DOORS.br.x-hw,    R1.y+R1.h,   1); // bottom left of door
+  seg(DOORS.br.x+hw, R1.y+R1.h,   R1.x+R1.w,        R1.y+R1.h,   1); // bottom right of door
+
+  // ── Corridor (index 2): side walls only — top drawn by bedrooms, bottom open ──
+  const R2 = ROOMS[2];
+  seg(R2.x,          R2.y,        R2.x,             R2.y+R2.h,   2); // left
+  seg(R2.x+R2.w,     R2.y,        R2.x+R2.w,        R2.y+R2.h,   2); // right
+
+  // ── Nappali (index 3): full rectangle ──
+  const R3  = ROOMS[3];
+  const h3  = roomHeat[3];
+  ctx.strokeStyle = `rgba(${Math.round(44+h3*80)},${Math.round(44+h3*20)},${Math.round(68-h3*20)},${0.22+h3*0.28})`;
+  ctx.lineWidth   = 1.8 * dpr;
+  ctx.strokeRect(...fp(R3.x, R3.y), R3.w * scale, R3.h * scale);
+}
+
+// ─── Draw: Room Labels ────────────────────────────────────────────────────────
+// Subtle room name in upper-left corner of each labelled room.
+function drawRoomLabels() {
+  ROOMS.forEach((r, i) => {
+    if (!r.label) return;
+    const [x, y] = fp(r.x, r.y);
+    const heat   = roomHeat[i];
+    const alpha  = 0.22 + heat * 0.20;
+    ctx.font      = `${Math.round(10 * dpr)}px 'Helvetica Neue', Helvetica, sans-serif`;
+    ctx.textAlign = 'left';
+    ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+    ctx.fillText(r.label, x + 9 * dpr, y + 16 * dpr);
+  });
+}
+
+// ─── Draw: Sensor FOV Cones ───────────────────────────────────────────────────
+function drawSensors() {
+  SENSORS.forEach(s => {
+    const [cx, cy] = fp(s.x, s.y);
+    const range    = fpr(s.range);
+    const present  = occ[s.id] === 'on';
+    const unknown  = occ[s.id] === null;
+
+    // FOV cone angle calculations
+    const dir  = (s.fov - 90) * Math.PI / 180;
+    const half = (s.fovW / 2) * Math.PI / 180;
+    const a1   = dir - half;
+    const a2   = dir + half;
+
+    // Cone fill opacity pulses when presence detected
+    const fillOpacity = present
+      ? 0.22 + 0.14 * Math.sin(frame * 0.042)
+      : unknown ? 0.04 : 0.07;
+
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, range);
+    g.addColorStop(0,    rgba(s.color, present ? 0.70 : 0.35));
+    g.addColorStop(0.55, rgba(s.color, fillOpacity));
+    g.addColorStop(1,    rgba(s.color, 0));
+
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, range, a1, a2);
+    ctx.closePath();
+    ctx.fillStyle = g;
+    ctx.fill();
+
+    // Cone edge lines
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, range, a1, a2);
+    ctx.closePath();
+    ctx.strokeStyle = rgba(s.color, present ? 0.35 : 0.08);
+    ctx.lineWidth   = dpr;
+    ctx.stroke();
+
+    // ── Sensor Dot ────────────────────────────────────────────────────────
+    const R = fpr(5.5);
+
+    // Ambient glow around sensor dot
+    const gl = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * 3.8);
+    gl.addColorStop(0, rgba(s.color, present ? 0.45 : 0.08));
+    gl.addColorStop(1, rgba(s.color, 0));
+    ctx.beginPath();
+    ctx.arc(cx, cy, R * 3.8, 0, Math.PI * 2);
+    ctx.fillStyle = gl;
+    ctx.fill();
+
+    // Core dot
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, 0, Math.PI * 2);
+    ctx.fillStyle   = present ? s.color : '#17172a';
+    ctx.fill();
+    ctx.strokeStyle = s.color;
+    ctx.lineWidth   = 1.5 * dpr;
+    ctx.stroke();
+
+    // Animated pulse ring when presence detected
+    if (present) {
+      const pR = R + fpr(3) * (1 + 0.4 * Math.sin(frame * 0.042));
+      ctx.beginPath();
+      ctx.arc(cx, cy, pR, 0, Math.PI * 2);
+      ctx.strokeStyle = rgba(s.color, 0.30);
+      ctx.lineWidth   = dpr;
+      ctx.stroke();
+    }
+  });
+}
+
+// ─── Person Tracker ───────────────────────────────────────────────────────────
+// Animated dot that moves to the detected room.
+// Routes through the corridor waypoint when crossing between upper/lower zones.
+
+// Fixed room targets — near the sensor cone tip, inside each room.
+// Scale reference: Nappali 16.12 m² = 760×285 canvas units → 1 m ≈ 116 canvas units.
+const ROOM_CENTERS = {
+  r2: { x: 200, y: 155, label: 'Bedroom 1'   },  // ~1.1 m from sensor
+  br: { x: 600, y: 155, label: 'Bedroom 2'   },  // ~1.1 m from sensor
+  lr: { x: 440, y: 490, label: 'Living Room' },  // ~1.2 m from sensor
+};
+
+// Two actual door positions: gaps in the bedroom bottom walls at y=285.
+// Bedrooms cannot connect directly — all cross-room paths go through the corridor.
+const DOORS = {
+  r2: { x: 300, y: 285 },  // 06 Szoba door (right-center of bottom wall)
+  br: { x: 490, y: 285 },  // 07 Szoba door (left-center of bottom wall)
+};
+const DOOR_W        = 75;   // door opening width in floor-plan units (≈ 65 cm)
+const CORRIDOR_MID_Y = 320; // y where person crosses corridor (midpoint of y:285–355)
+
+// Walking speed: ~0.85 m/s ≈ 1.6 canvas units/frame at 60 fps
+// (1.2 m/s base × 0.7 = leisurely walking pace)
+const WALK_SPEED = 1.6;
+
+const TRAIL_LEN = 28;
+
+const person = {
+  x: 400, y: 320,     // current animated position (floor-plan coords)
+  tx: 400, ty: 320,   // movement target
+  opacity: 0,         // rendered opacity (lerped)
+  opTarget: 0,        // desired opacity
+  lastRoom: null,     // sensor id of last confirmed room
+  roomColor: '#ffffff',
+  roomLabel: '',
+  path: [],           // queued waypoints: [{x,y}]
+  fadeTimer: null,    // handle for no-presence fade-out delay
+  trail: [],          // recent positions for motion trail
+  driftX: 0,          // perpendicular drift velocity (creates arc movement)
+  driftY: 0,
+};
+
+function nextWaypoint() {
+  if (person.path.length === 0) return;
+  const pt  = person.path.shift();
+  person.tx = pt.x;
+  person.ty = pt.y;
+
+  // Compute a perpendicular drift impulse to create a natural arc toward target.
+  // The perpendicular vector is rotated 90° from the movement direction.
+  // Strength scales with distance so longer journeys curve more.
+  const dx   = person.tx - person.x;
+  const dy   = person.ty - person.y;
+  const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+  const perpX = -dy / dist;
+  const perpY =  dx / dist;
+  const strength = Math.min(dist * 0.008, 1.0) * (Math.random() > 0.5 ? 1 : -1);
+  person.driftX = perpX * strength;
+  person.driftY = perpY * strength;
+}
+
+// Recalculate person target whenever occupancy state changes.
+function updatePersonTarget() {
+  const active = SENSORS.filter(s => occ[s.id] === 'on');
+  clearTimeout(person.fadeTimer);
+
+  if (active.length === 0) {
+    // No sensor active — keep dot exactly where it is, forever.
+    // Dot only moves when a different sensor fires. Never fades out.
+    return;
+  }
+
+  const target   = active[0];
+  const roomInfo = ROOM_CENTERS[target.id];
+
+  person.opTarget  = 1;
+  person.roomColor = SENSORS.find(s => s.id === target.id).color;
+  person.roomLabel = roomInfo.label;
+
+  if (person.lastRoom === target.id) return;  // already heading here
+
+  // Capture source room BEFORE updating lastRoom
+  const fromId = person.lastRoom;
+  person.lastRoom = target.id;
+
+  const destPos = ROOM_CENTERS[target.id];  // fixed destination (no random)
+
+  // True if person is currently mid-corridor (already exited previous room).
+  // In this case skip routing back to source door to avoid backward movement.
+  const inCorridor = person.y >= 280 && person.y <= 360;
+
+  if (!fromId) {
+    // First appearance — go directly to destination
+    person.path = [destPos];
+
+  } else if (fromId !== 'lr' && target.id !== 'lr') {
+    // Bedroom → bedroom: wall between them — must cross through corridor.
+    const srcDoor = DOORS[fromId];
+    const dstDoor = DOORS[target.id];
+    if (inCorridor) {
+      // Already in corridor — go straight to dst door then room
+      person.path = [dstDoor, destPos];
+    } else {
+      // Full route: src door → corridor mid → dst door → room center
+      person.path = [
+        srcDoor,
+        { x: (srcDoor.x + dstDoor.x) / 2, y: CORRIDOR_MID_Y },
+        dstDoor,
+        destPos,
+      ];
+    }
+
+  } else if (fromId === 'lr') {
+    // Nappali → bedroom: walk up through bedroom door
+    person.path = [DOORS[target.id], destPos];
+
+  } else {
+    // Bedroom → Nappali: exit through bedroom door, continue to Nappali
+    if (inCorridor) {
+      // Already exited bedroom — go straight to Nappali
+      person.path = [destPos];
+    } else {
+      person.path = [DOORS[fromId], destPos];
+    }
+  }
+
+  nextWaypoint();
+}
+
+function drawPerson() {
+  // Lerp opacity toward target
+  person.opacity += (person.opTarget - person.opacity) * 0.05;
+  if (person.opacity < 0.02) return;
+
+  // Apply perpendicular drift (arc effect) — fades as person nears target
+  const distToTarget = Math.hypot(person.tx - person.x, person.ty - person.y);
+  const driftFade    = Math.min(distToTarget / 80, 1.0);
+  person.x += person.driftX * driftFade;
+  person.y += person.driftY * driftFade;
+  person.driftX *= 0.94;  // drift decays over time
+  person.driftY *= 0.94;
+
+  // Constant walking speed: WALK_SPEED canvas units/frame ≈ 1.2 m/s.
+  // Using directional step (not lerp) so the person moves at a steady pace,
+  // not fast-then-slow. Drift still adds gentle curvature to the path.
+  const dx2   = person.tx - person.x;
+  const dy2   = person.ty - person.y;
+  const dist2 = Math.hypot(dx2, dy2);
+  if (dist2 > 0.3) {
+    const step = Math.min(dist2, WALK_SPEED);
+    person.x  += (dx2 / dist2) * step;
+    person.y  += (dy2 / dist2) * step;
+  }
+
+  // Advance to next waypoint when within 2 units of current target
+  if (Math.hypot(person.tx - person.x, person.ty - person.y) < 2 && person.path.length > 0) {
+    nextWaypoint();
+  }
+
+  // Record trail position
+  person.trail.push({ x: person.x, y: person.y });
+  if (person.trail.length > TRAIL_LEN) person.trail.shift();
+
+  const [cx, cy] = fp(person.x, person.y);
+  const op = person.opacity;
+  const c  = person.roomColor;
+
+  // Motion trail — fading dots
+  for (let i = 1; i < person.trail.length; i++) {
+    const frac = i / person.trail.length;
+    const [tx, ty] = fp(person.trail[i].x, person.trail[i].y);
+    ctx.beginPath();
+    ctx.arc(tx, ty, fpr(3.5) * frac, 0, Math.PI * 2);
+    ctx.fillStyle = rgba(c, 0.16 * frac * op);
+    ctx.fill();
+  }
+
+  // Outer slow-pulse ring
+  const pulseR = fpr(20) + fpr(5) * Math.sin(frame * 0.045);
+  ctx.beginPath();
+  ctx.arc(cx, cy, pulseR, 0, Math.PI * 2);
+  ctx.strokeStyle = rgba(c, 0.18 * op);
+  ctx.lineWidth   = dpr;
+  ctx.stroke();
+
+  // Glow halo
+  const gl = ctx.createRadialGradient(cx, cy, 0, cx, cy, fpr(24));
+  gl.addColorStop(0,   rgba('#ffffff', 0.18 * op));
+  gl.addColorStop(0.4, rgba(c,         0.12 * op));
+  gl.addColorStop(1,   rgba(c,         0));
+  ctx.beginPath();
+  ctx.arc(cx, cy, fpr(24), 0, Math.PI * 2);
+  ctx.fillStyle = gl;
+  ctx.fill();
+
+  // Core dot
+  const R = fpr(9);
+  ctx.beginPath();
+  ctx.arc(cx, cy, R, 0, Math.PI * 2);
+  ctx.fillStyle   = rgba('#ffffff', 0.90 * op);
+  ctx.fill();
+  ctx.strokeStyle = rgba(c, 0.85 * op);
+  ctx.lineWidth   = 2.2 * dpr;
+  ctx.stroke();
+
+  // Inner accent (sensor color)
+  ctx.beginPath();
+  ctx.arc(cx, cy, R * 0.42, 0, Math.PI * 2);
+  ctx.fillStyle = rgba(c, 0.65 * op);
+  ctx.fill();
+
+  // Room label below dot
+  if (person.lastRoom && person.opacity > 0.25) {
+    ctx.font      = `${Math.round(11 * dpr)}px 'Helvetica Neue', Helvetica, sans-serif`;
+    ctx.textAlign = 'center';
+    const label = person.roomLabel;
+    const tw    = ctx.measureText(label).width;
+    const lx    = cx - tw / 2 - 6 * dpr;
+    const ly    = cy + fpr(18) - 10 * dpr;
+    ctx.fillStyle = rgba('#09090f', 0.52 * op);
+    ctx.beginPath();
+    ctx.roundRect(lx, ly, tw + 12 * dpr, 14 * dpr, 4 * dpr);
+    ctx.fill();
+    ctx.fillStyle = rgba('#ffffff', 0.72 * op);
+    ctx.fillText(label, cx, cy + fpr(18));
+  }
+}
+
+// ─── Main Draw Loop ───────────────────────────────────────────────────────────
+let frame = 0;
+
+function draw() {
+  frame++;
+  updateHeat();
+
+  // Clear
+  ctx.fillStyle = '#09090f';
+  ctx.fillRect(0, 0, W, H);
+
+  // Layer order: base fills → thermal glow → walls → room labels → cones → person
+  drawRoomBase();
+  drawRoomGlow();
+  drawWalls();
+  drawRoomLabels();
+  drawSensors();
+  drawPerson();
+}
+
+(function loop() { draw(); requestAnimationFrame(loop); })();
+
+// ─── Demo Mode ────────────────────────────────────────────────────────────────
+// Simulates a person moving through the apartment when sensors are offline.
+// Sequences: [r2/06Szoba, br/07Szoba, lr/Nappali]
+const DEMO_SEQ = [
+  ['off', 'off', 'on' ],
+  ['off', 'off', 'on' ],
+  ['off', 'off', 'on' ],
+  ['on',  'off', 'off'],
+  ['on',  'off', 'off'],
+  ['on',  'off', 'off'],
+  ['off', 'off', 'off'],  // corridor gap
+  ['off', 'on',  'off'],
+  ['off', 'on',  'off'],
+  ['off', 'on',  'off'],
+  ['off', 'off', 'off'],  // corridor gap
+  ['off', 'off', 'on' ],
+];
+let demoRunning = false, demoTimer = null, demoIdx = 0;
+
+function startDemo() {
+  if (demoRunning) return;
+  demoRunning = true;
+  setDot('demo');
+  (function tick() {
+    const d = DEMO_SEQ[demoIdx++ % DEMO_SEQ.length];
+    occ.r2 = d[0]; occ.br = d[1]; occ.lr = d[2];
+    updatePersonTarget();
+    demoTimer = setTimeout(tick, 2500);
+  })();
+}
+
+function stopDemo() {
+  if (!demoRunning) return;
+  demoRunning = false;
+  clearTimeout(demoTimer);
+  SENSORS.forEach(s => { occ[s.id] = null; });
+  updatePersonTarget();
+}
+
+function checkDemo() {
+  const hasLive = SENSORS.some(s => occ[s.id] === 'on' || occ[s.id] === 'off');
+  if (!hasLive &&  demoRunning === false) startDemo();
+  if ( hasLive &&  demoRunning)          stopDemo();
+}
+
+// ─── Home Assistant WebSocket ─────────────────────────────────────────────────
+const entityMap = {};
+SENSORS.forEach(s => { entityMap[s.occ] = s.id; });
+
+function applyState(eid, val) {
+  const sid = entityMap[eid];
+  if (!sid) return;
+  occ[sid] = (val === 'unavailable' || val === 'unknown') ? null : val;
+  updatePersonTarget();
+  checkDemo();
+}
+
+let ws = null, wsRetry = null, mid = 1;
+
+function setDot(cls) { document.getElementById('dot').className = cls; }
+
+function connect() {
+  clearTimeout(wsRetry);
+  ws = new WebSocket(HA_WS);
+
+  ws.onmessage = e => {
+    const m = JSON.parse(e.data);
+    if (m.type === 'auth_required') {
+      ws.send(JSON.stringify({ type: 'auth', access_token: HA_TOK }));
+    } else if (m.type === 'auth_ok') {
+      setDot('live');
+      ws.send(JSON.stringify({ id: mid++, type: 'get_states' }));
+      ws.send(JSON.stringify({ id: mid++, type: 'subscribe_events', event_type: 'state_changed' }));
+    } else if (m.type === 'auth_invalid') {
+      setDot('err');
+    } else if (m.type === 'result' && Array.isArray(m.result)) {
+      m.result.forEach(s => applyState(s.entity_id, s.state));
+    } else if (m.type === 'event' && m.event?.data?.new_state) {
+      applyState(m.event.data.entity_id, m.event.data.new_state.state);
+    }
+  };
+
+  ws.onclose = () => { setDot('err'); wsRetry = setTimeout(connect, 5000); checkDemo(); };
+  ws.onerror = () => { checkDemo(); };
+}
+
+// Start demo fallback after 3s if no live data arrives
+setTimeout(checkDemo, 3000);
+connect();
+</script>
+</body>
+</html>

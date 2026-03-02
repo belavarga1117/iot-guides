@@ -1,0 +1,17 @@
+graph LR
+    PC["💻 Computer\nUSB-C"]
+    NM["🖥 Arduino Nano Matter\nHallway Sensor"]
+    LED["💡 IS31FL3741\n9×13 RGB LED Matrix · 0x30"]
+    GE["📡 Grid-EYE AMG8833\n8×8 Thermal Camera · 0x69"]
+    LIGHT["☀️ Modulino Light\nAmbient Light Sensor · 0x53"]
+
+    PC -->|"USB data + power"| NM
+    NM -->|"Qwiic I2C"| LED
+    LED -->|"Qwiic I2C"| GE
+    GE -->|"Qwiic I2C"| LIGHT
+
+    style PC fill:#f5f5f5,stroke:#9e9e9e,stroke-width:1px
+    style NM fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    style LED fill:#fce4ec,stroke:#c62828,stroke-width:2px
+    style GE fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    style LIGHT fill:#fff9c4,stroke:#f57f17,stroke-width:2px

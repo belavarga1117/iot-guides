@@ -1,0 +1,52 @@
+graph TD
+    subgraph RPI["🖥 Raspberry Pi 4 · Docker"]
+        HA["🏠 Home Assistant\n:8123"]
+        MS["⚙️ Matter Server\n:5580"]
+        OTBR["📡 OpenThread Border Router\n:8081"]
+
+        HA <-->|"WebSocket"| MS
+        HA <-->|"REST API · Thread config"| OTBR
+    end
+
+    XIAO["📻 XIAO MG24 Sense\nThread RCP · USB"]
+
+    OTBR <-->|"spinel · USB serial"| XIAO
+    MS -.->|"Matter over Thread"| XIAO
+
+    XIAO <-->|"Thread 802.15.4"| R1
+    XIAO <-->|"Thread 802.15.4"| R2
+    XIAO <-->|"Thread 802.15.4"| R3
+
+    subgraph N1["Node 1 · Living Room"]
+        R1("SparkFun Thing Plus Matter #1")
+        GE1["Grid-EYE AMG8833\n8×8 Thermal Camera"]
+        SCD["SCD40\nCO₂ + Temp + Humidity"]
+        OLED["Micro OLED\n128×64 Display"]
+    end
+
+    subgraph N2["Node 2 · Bedroom"]
+        R2("SparkFun Thing Plus Matter #2")
+        GE2["Grid-EYE AMG8833\n8×8 Thermal Camera"]
+        DIST["Modulino Distance\nToF Proximity"]
+        LED2["IS31FL3741\n9×13 RGB Matrix"]
+    end
+
+    subgraph N3["Node 3 · Hallway"]
+        R3("Arduino Nano Matter")
+        GE3["Grid-EYE AMG8833\n8×8 Thermal Camera"]
+        LIGHT["Modulino Light\nAmbient Light"]
+        LED3["IS31FL3741\n9×13 RGB Matrix"]
+    end
+
+    R1 -.-|"mesh"| R2
+    R2 -.-|"mesh"| R3
+    R3 -.-|"mesh"| R1
+
+    style RPI fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    style XIAO fill:#ede7f6,stroke:#4527a0,stroke-width:2px
+    style N1 fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    style N2 fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    style N3 fill:#fce4ec,stroke:#c62828,stroke-width:2px
+    style R1 fill:#c8e6c9,stroke:#2e7d32,color:#1b5e20
+    style R2 fill:#ffe0b2,stroke:#e65100,color:#bf360c
+    style R3 fill:#f8bbd0,stroke:#c62828,color:#880e4f

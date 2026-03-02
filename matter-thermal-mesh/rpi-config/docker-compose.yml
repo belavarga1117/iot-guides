@@ -1,0 +1,64 @@
+# Smart Home Matter Starter — Docker Compose
+# Runs Home Assistant + OTBR + Matter Server on Raspberry Pi OS
+#
+# Usage:
+#   docker compose up -d
+#
+# Prerequisites:
+#   - Docker installed on RPi
+#   - XIAO MG24 with RCP firmware plugged into USB
+#   - Find your device: ls /dev/serial/by-id/*
+#   - Update the device path in otbr.devices below
+
+services:
+  homeassistant:
+    container_name: homeassistant
+    image: ghcr.io/home-assistant/home-assistant:stable
+    restart: unless-stopped
+    privileged: true
+    network_mode: host
+    environment:
+      - TZ=Europe/Budapest
+    volumes:
+      - /opt/homeassistant/config:/config
+      - /run/dbus:/run/dbus:ro
+    depends_on:
+      - otbr
+      - matter-server
+
+  otbr:
+    container_name: otbr
+    image: ghcr.io/ownbee/hass-otbr-docker
+    restart: unless-stopped
+    privileged: true
+    network_mode: host
+    environment:
+      DEVICE: "/dev/ttyACM0"
+      BAUDRATE: "460800"
+      FLOW_CONTROL: "0"
+      AUTOFLASH_FIRMWARE: "0"
+      FIREWALL: "1"
+      NAT64: "0"
+      OTBR_REST_PORT: "8081"
+      BACKBONE_IF: "wlan0"
+    devices:
+      - /dev/serial/by-id/usb-Seeed_Studio_Seeed_Studio_XIAO_MG24__Sense__CMSIS-DAP_9AD1F1E2-if02:/dev/ttyACM0
+    volumes:
+      - otbr_data:/var/lib/thread
+
+  matter-server:
+    container_name: matter-server
+    image: ghcr.io/home-assistant-libs/python-matter-server:stable
+    restart: unless-stopped
+    privileged: true
+    network_mode: host
+    environment:
+      - TZ=Europe/Budapest
+    volumes:
+      - matter_data:/data
+      - /run/dbus:/run/dbus:ro
+    command: --storage-path /data --paa-root-cert-dir /data/credentials --bluetooth-adapter 0
+
+volumes:
+  otbr_data:
+  matter_data:

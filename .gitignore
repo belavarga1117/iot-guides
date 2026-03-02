@@ -1,0 +1,35 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.env
+
+# Node
+node_modules/
+package-lock.json
+
+# macOS
+.DS_Store
+*.swp
+
+# IDE
+.vscode/
+.idea/
+
+# Playwright
+scripts/playwright/test-results/
+scripts/playwright/playwright-report/
+
+# Temporary
+/tmp/
+*.tmp
+
+# Claude Code (local only, not for GitHub)
+CLAUDE.md
+.claude/
+
+# Secrets (never commit)
+*.key
+*.pem
+credentials.json

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Home Matter Starter — Thermal Presence Dashboard</title>
+
+  <!-- D3.js for heatmap + mesh visualization -->
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+
+  <!-- Socket.IO for real-time updates -->
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+
+  <link rel="stylesheet" href="/src/styles.css">
+</head>
+<body>
+  <header>
+    <h1>Smart Home Matter Starter</h1>
+    <div id="status">
+      <span id="connection-status" class="status-dot offline"></span>
+      <span id="status-text">Connecting...</span>
+      <span id="node-count">0 nodes</span>
+    </div>
+  </header>
+
+  <main>
+    <!-- Floor Plan with Heatmap Overlays -->
+    <section id="floorplan-section">
+      <h2>Thermal Presence Map</h2>
+      <div id="floorplan-container">
+        <svg id="floorplan-svg"></svg>
+        <canvas id="heatmap-canvas"></canvas>
+      </div>
+    </section>
+
+    <!-- Thread Mesh Topology -->
+    <section id="mesh-section">
+      <h2>Thread Mesh Network</h2>
+      <div id="mesh-container">
+        <svg id="mesh-svg"></svg>
+      </div>
+      <div id="mesh-info">
+        <span id="mesh-node-count">Nodes: --</span>
+        <span id="mesh-link-count">Links: --</span>
+        <span id="mesh-leader">Leader: --</span>
+      </div>
+    </section>
+
+    <!-- Room Cards -->
+    <section id="rooms-section">
+      <h2>Room Status</h2>
+      <div id="room-cards"></div>
+    </section>
+  </main>
+
+  <footer>
+    <span>Smart Home Matter Starter — Silicon Labs Matter + Thread</span>
+    <span id="last-update">Last update: --</span>
+  </footer>
+
+  <!-- App modules -->
+  <script src="/src/heatmap.js"></script>
+  <script src="/src/floorplan.js"></script>
+  <script src="/src/mesh-topology.js"></script>
+  <script src="/src/motion-trails.js"></script>
+
+  <script>
+    // Main app — connects everything together
+    const socket = io();
+    let dashConfig = null;
+
+    // Fetch config on load
+    fetch("/api/config")
+      .then(r => r.json())
+      .then(cfg => {
+        dashConfig = cfg;
+        FloorPlan.init(cfg.floorplan, cfg.nodes);
+        MeshTopology.init();
+        HeatMap.init(cfg.heatmap);
+        MotionTrails.init();
+        createRoomCards(cfg.nodes);
+      });
+
+    // WebSocket: real-time sensor updates
+    socket.on("connect", () => {
+      document.getElementById("connection-status").className = "status-dot online";
+      document.getElementById("status-text").textContent = "Connected";
+    });
+
+    socket.on("disconnect", () => {
+      document.getElementById("connection-status").className = "status-dot offline";
+      document.getElementById("status-text").textContent = "Disconnected";
+    });
+
+    socket.on("state", (data) => {
+      if (!dashConfig) return;
+
+      // Update heatmap + room cards
+      updateSensorDisplay(data.sensors);
+
+      // Update mesh if present
+      if (data.mesh) {
+        MeshTopology.update(data.mesh);
+        updateMeshInfo(data.mesh);
+      }
+
+      // Update timestamp
+      const now = new Date();
+      document.getElementById("last-update").textContent =
+        `Last update: ${now.toLocaleTimeString()}`;
+    });
+
+    socket.on("mesh", (meshData) => {
+      if (meshData) {
+        MeshTopology.update(meshData);
+        updateMeshInfo(meshData);
+      }
+    });
+
+    function updateSensorDisplay(sensors) {
+      const nodeCount = Object.keys(sensors).length;
+      document.getElementById("node-count").textContent = `${nodeCount} nodes`;
+
+      for (const [nodeId, data] of Object.entries(sensors)) {
+        // Update room card
+        const card = document.getElementById(`card-${nodeId}`);
+        if (card) {
+          card.querySelector(".temp-value").textContent = `${data.temperature.toFixed(1)}°C`;
+          card.querySelector(".occupancy-value").textContent =
+            data.occupied ? `Occupied (${data.person_count})` : "Empty";
+          card.className = `room-card ${data.occupied ? "occupied" : "empty"}`;
+        }
+
+        // Update heatmap overlay
+        const nodeCfg = dashConfig.nodes.find(n => n.id === nodeId);
+        if (nodeCfg) {
+          HeatMap.updateNode(nodeId, data.temperature, data.occupied, nodeCfg);
+          MotionTrails.addPoint(nodeId, data.occupied, nodeCfg);
+        }
+      }
+    }
+
+    function updateMeshInfo(mesh) {
+      document.getElementById("mesh-node-count").textContent =
+        `Nodes: ${mesh.nodes.length}`;
+      document.getElementById("mesh-link-count").textContent =
+        `Links: ${mesh.links.length}`;
+      const leader = mesh.nodes.find(n => n.role === "leader");
+      document.getElementById("mesh-leader").textContent =
+        `Leader: ${leader ? leader.rloc16 : "--"}`;
+    }
+
+    function createRoomCards(nodes) {
+      const container = document.getElementById("room-cards");
+      container.innerHTML = "";
+      for (const node of nodes) {
+        const card = document.createElement("div");
+        card.id = `card-${node.id}`;
+        card.className = "room-card empty";
+        card.innerHTML = `
+          <h3>${node.room}</h3>
+          <div class="card-body">
+            <div class="temp-value">--°C</div>
+            <div class="occupancy-value">--</div>
+            <div class="node-info">${node.id} (×${node.grid_eye_count} sensor${node.grid_eye_count > 1 ? "s" : ""})</div>
+          </div>
+        `;
+        container.appendChild(card);
+      }
+    }
+  </script>
+</body>
+</html>

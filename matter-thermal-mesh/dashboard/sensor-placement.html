@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Sensor Placement — Matter Thermal Mesh</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #1a1a2e; font-family: 'Helvetica Neue', sans-serif; display: flex; flex-direction: column; align-items: center; padding: 24px; min-height: 100vh; }
+  h1 { color: #e0e0e0; font-size: 18px; font-weight: 400; margin-bottom: 6px; letter-spacing: 1px; }
+  p.sub { color: #666; font-size: 12px; margin-bottom: 20px; }
+  #map-container {
+    position: relative;
+    width: 900px;
+    max-width: 98vw;
+  }
+  #floorplan-img {
+    width: 100%;
+    display: block;
+    border-radius: 8px;
+    filter: brightness(0.85) contrast(1.1);
+  }
+  svg#overlay {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+  }
+
+  /* Legend */
+  #legend {
+    display: flex;
+    gap: 24px;
+    margin-top: 16px;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #bbb;
+    font-size: 13px;
+  }
+  .legend-dot {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.4);
+    flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+
+<h1>SENSOR PLACEMENT MAP</h1>
+<p class="sub">Matter Thermal Mesh — Budai Walzer BW2-Hegedű-A-4-8 — Grid-EYE 60° FOV</p>
+
+<div id="map-container">
+  <img id="floorplan-img" src="floorplan.jpg" alt="Floor plan">
+  <svg id="overlay" viewBox="0 0 900 676" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <!-- FOV cone: 60° arc fill -->
+      <filter id="glow-green">
+        <feGaussianBlur stdDeviation="3" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+      <filter id="glow-purple">
+        <feGaussianBlur stdDeviation="3" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+      <filter id="glow-orange">
+        <feGaussianBlur stdDeviation="3" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+    </defs>
+
+    <!--
+      Floor plan coordinate reference (900×676 viewport):
+        06 Szoba (upper-left bedroom):  ~255, 235
+        07 Szoba (upper-right bedroom): ~630, 248
+        01 Nappali (living room):       ~450, 440
+
+      Sensor facing direction (from yellow arrows on original plan):
+        SparkFun #2 / 06 Szoba  → faces EAST (right, into room) = 0°
+        Nano Matter  / 07 Szoba → faces WEST-DOWN (into room)  = 200°
+        SparkFun #1  / Nappali  → faces EAST (into living area) = 350°
+
+      FOV = 60° half-angle = 30° each side
+      Optimal detection range shown: 180px (~2m at scale)
+    -->
+
+    <!-- ═══════════════════════════════════════
+         SparkFun #2  —  06 Szoba  —  GREEN
+    ═══════════════════════════════════════ -->
+    <g id="sensor-sparkfun2" transform="translate(258, 232)">
+      <!-- FOV cone: facing right (0°), 60° total, range 160px -->
+      <path d="M0,0 L160,-84 A170,170 0 0,1 160,84 Z"
+            fill="rgba(0,220,80,0.12)" stroke="rgba(0,220,80,0.5)" stroke-width="1"
+            stroke-dasharray="6 3"/>
+      <!-- Range ring at 2m -->
+      <circle r="160" fill="none" stroke="rgba(0,220,80,0.2)" stroke-width="1" stroke-dasharray="3 5"/>
+      <!-- Sensor dot -->
+      <circle r="10" fill="#00dc50" stroke="#fff" stroke-width="2" filter="url(#glow-green)" opacity="0.95"/>
+      <!-- Pulsing ring -->
+      <circle r="10" fill="none" stroke="#00dc50" stroke-width="2" opacity="0.6">
+        <animate attributeName="r" values="10;28;10" dur="2.5s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0.6;0;0.6" dur="2.5s" repeatCount="indefinite"/>
+      </circle>
+      <!-- Label -->
+      <rect x="14" y="-30" width="148" height="52" rx="6"
+            fill="rgba(0,0,0,0.75)" stroke="rgba(0,220,80,0.7)" stroke-width="1.5"/>
+      <text x="22" y="-12" font-family="Helvetica Neue,sans-serif" font-size="13" font-weight="700" fill="#00dc50">SparkFun #2</text>
+      <text x="22" y="6" font-family="Helvetica Neue,sans-serif" font-size="11" fill="#aaa">06 Szoba · Bedroom</text>
+      <text x="22" y="18" font-family="Helvetica Neue,sans-serif" font-size="10" fill="#666">temp · occupancy</text>
+    </g>
+
+    <!-- ═══════════════════════════════════════
+         Nano Matter  —  07 Szoba  —  PURPLE
+    ═══════════════════════════════════════ -->
+    <g id="sensor-nano" transform="translate(632, 250)">
+      <!-- FOV cone: facing left-down (~200°) -->
+      <path d="M0,0 L-140,109 A170,170 0 0,1 -155,42 Z"
+            fill="rgba(160,80,255,0.12)" stroke="rgba(160,80,255,0.5)" stroke-width="1"
+            stroke-dasharray="6 3"/>
+      <circle r="160" fill="none" stroke="rgba(160,80,255,0.2)" stroke-width="1" stroke-dasharray="3 5"/>
+      <circle r="10" fill="#a050ff" stroke="#fff" stroke-width="2" filter="url(#glow-purple)" opacity="0.95"/>
+      <circle r="10" fill="none" stroke="#a050ff" stroke-width="2" opacity="0.6">
+        <animate attributeName="r" values="10;28;10" dur="2.8s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0.6;0;0.6" dur="2.8s" repeatCount="indefinite"/>
+      </circle>
+      <!-- Label — place to the left so it doesn't clip -->
+      <rect x="-162" y="-30" width="148" height="52" rx="6"
+            fill="rgba(0,0,0,0.75)" stroke="rgba(160,80,255,0.7)" stroke-width="1.5"/>
+      <text x="-154" y="-12" font-family="Helvetica Neue,sans-serif" font-size="13" font-weight="700" fill="#a050ff">Nano Matter</text>
+      <text x="-154" y="6" font-family="Helvetica Neue,sans-serif" font-size="11" fill="#aaa">07 Szoba · Bedroom 2</text>
+      <text x="-154" y="18" font-family="Helvetica Neue,sans-serif" font-size="10" fill="#666">temp · occupancy · display</text>
+    </g>
+
+    <!-- ═══════════════════════════════════════
+         SparkFun #1  —  01 Nappali  —  ORANGE
+    ═══════════════════════════════════════ -->
+    <g id="sensor-sparkfun1" transform="translate(448, 442)">
+      <!-- FOV cone: facing up-right (~350° = almost north with slight east tilt) -->
+      <path d="M0,0 L27,-162 A170,170 0 0,1 -27,-162 Z"
+            fill="rgba(255,140,0,0.12)" stroke="rgba(255,140,0,0.5)" stroke-width="1"
+            stroke-dasharray="6 3"/>
+      <circle r="160" fill="none" stroke="rgba(255,140,0,0.2)" stroke-width="1" stroke-dasharray="3 5"/>
+      <circle r="10" fill="#ff8c00" stroke="#fff" stroke-width="2" filter="url(#glow-orange)" opacity="0.95"/>
+      <circle r="10" fill="none" stroke="#ff8c00" stroke-width="2" opacity="0.6">
+        <animate attributeName="r" values="10;28;10" dur="3.1s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0.6;0;0.6" dur="3.1s" repeatCount="indefinite"/>
+      </circle>
+      <!-- Label -->
+      <rect x="14" y="-30" width="180" height="64" rx="6"
+            fill="rgba(0,0,0,0.75)" stroke="rgba(255,140,0,0.7)" stroke-width="1.5"/>
+      <text x="22" y="-12" font-family="Helvetica Neue,sans-serif" font-size="13" font-weight="700" fill="#ff8c00">SparkFun #1</text>
+      <text x="22" y="6" font-family="Helvetica Neue,sans-serif" font-size="11" fill="#aaa">01 Nappali · Living Room</text>
+      <text x="22" y="20" font-family="Helvetica Neue,sans-serif" font-size="10" fill="#666">temp · occupancy</text>
+      <text x="22" y="32" font-family="Helvetica Neue,sans-serif" font-size="10" fill="#666">humidity · air quality (CO₂)</text>
+    </g>
+
+    <!-- FOV legend -->
+    <g transform="translate(16, 620)">
+      <path d="M0,0 L40,-13 A42,42 0 0,1 40,13 Z" fill="rgba(255,255,255,0.07)" stroke="rgba(255,255,255,0.3)" stroke-width="1" stroke-dasharray="4 2"/>
+      <text x="50" y="5" font-family="Helvetica Neue,sans-serif" font-size="11" fill="#666">60° FOV  (~2m detection range shown)</text>
+    </g>
+  </svg>
+</div>
+
+<div id="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:#00dc50"></div>SparkFun #2 — 06 Szoba</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#a050ff"></div>Nano Matter — 07 Szoba</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#ff8c00"></div>SparkFun #1 — Nappali</div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,16 @@
+[Unit]
+Description=Smart Home Matter Starter Flask Dashboard
+After=docker.service
+Wants=docker.service
+
+[Service]
+Type=simple
+User=smartpi
+WorkingDirectory=/home/smartpi/silabs-training/matter-thermal-mesh/dashboard/backend
+Environment=HA_TOKEN=REPLACE_WITH_YOUR_TOKEN
+ExecStart=/home/smartpi/silabs-training/matter-thermal-mesh/dashboard/backend/venv/bin/python app.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

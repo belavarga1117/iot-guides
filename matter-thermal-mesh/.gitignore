@@ -1,0 +1,18 @@
+# Node / Playwright
+node_modules/
+scripts/playwright/test-results/
+scripts/playwright/playwright-report/
+
+# Secrets
+.env
+.env.*
+*.key
+*.pem
+credentials.json
+
+# Claude / AI tools
+CLAUDE.md
+.claude/
+
+# macOS
+.DS_Store

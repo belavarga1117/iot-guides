@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 const path = require('path');
 
 const SCREENSHOTS_DIR = path.join(__dirname, '../../../docs/screenshots/07-commissioning');
-const HA_URL = 'http://192.168.1.111:8123';
+const HA_URL = 'http://smartpi.local:8123';
 const HA_USER = 'smartpi';
 const HA_PASS = 'smartpi';
 

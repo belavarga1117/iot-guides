@@ -1,8 +1,8 @@
 const WebSocket = require('ws');
 
-const MS_WS  = 'ws://192.168.1.111:5580/ws';
-const HA_WS  = 'ws://192.168.1.111:8123/api/websocket';
-const HA_TOK = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiIyODZjNDQ0OWE2OGM0N2FlYTcyMDhiMjE1NGFiZGU2MCIsImlhdCI6MTc3MjQ0ODk1NCwiZXhwIjoyMDg3ODA4OTU0fQ.PS9pd6Dj8qJKxOEAdoKWL_sVz9EvZLBgxCgv7pyr-nc';
+const MS_WS  = 'ws://smartpi.local:5580/ws';
+const HA_WS  = 'ws://smartpi.local:8123/api/websocket';
+const HA_TOK = 'YOUR_HA_LONG_LIVED_TOKEN';
 
 const NODE_NAMES = { 15: 'SparkFun #2 (06 Szoba)', 16: 'SparkFun #1 (Nappali)', 17: 'Nano Matter (07 Szoba)' };
 const nodeState = {};
@@ -24,7 +24,7 @@ ms.on('message', data => {
       const name = NODE_NAMES[n.node_id] || `node ${n.node_id}`;
       log(`INIT  ${name}: ${n.available ? '🟢 online' : '🔴 offline'}`);
     });
-    log('--- Monitoring started — húzd ki az eszközöket ---');
+    log('--- Monitoring started — unplug the devices ---');
   }
   // Events (node_added, node_updated, etc.)
   if (m.event) {

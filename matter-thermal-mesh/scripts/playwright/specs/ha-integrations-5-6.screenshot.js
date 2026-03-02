@@ -3,7 +3,7 @@ const { test } = require('@playwright/test');
 const path = require('path');
 
 const SCREENSHOTS_DIR = path.join(__dirname, '../../../docs/screenshots/05-ha-setup');
-const HA_URL = 'http://192.168.1.111:8123';
+const HA_URL = 'http://smartpi.local:8123';
 
 async function loginToHA(page) {
   await page.goto(HA_URL);

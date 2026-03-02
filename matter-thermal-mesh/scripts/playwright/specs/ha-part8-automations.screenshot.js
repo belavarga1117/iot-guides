@@ -4,10 +4,10 @@ const path = require('path');
 const fs = require('fs');
 
 const SCREENSHOTS_DIR = path.join(__dirname, '../../../docs/screenshots/08-automations');
-const HA_URL = 'http://192.168.1.111:8123';
+const HA_URL = 'http://smartpi.local:8123';
 const HA_USER = 'smartpi';
 const HA_PASS = 'smartpi';
-const HA_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiIyODZjNDQ0OWE2OGM0N2FlYTcyMDhiMjE1NGFiZGU2MCIsImlhdCI6MTc3MjQ0ODk1NCwiZXhwIjoyMDg3ODA4OTU0fQ.PS9pd6Dj8qJKxOEAdoKWL_sVz9EvZLBgxCgv7pyr-nc';
+const HA_TOKEN = 'YOUR_HA_LONG_LIVED_TOKEN';
 
 fs.mkdirSync(SCREENSHOTS_DIR, { recursive: true });
 

@@ -1,6 +1,6 @@
 const { chromium } = require('playwright');
 
-const HA_URL = 'http://192.168.1.111:8123';
+const HA_URL = 'http://smartpi.local:8123';
 const OLD_DEVICE_IDS = [
   'c6f30fd90c79341f3c2274c8a7131f6a',
   'ef0cd75e0b16b6a4cb6d09d5477243f9',

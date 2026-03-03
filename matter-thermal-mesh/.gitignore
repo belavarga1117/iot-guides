@@ -13,6 +13,7 @@ credentials.json
 # Claude / AI tools
 CLAUDE.md
 .claude/
+HARDWARE-MANIFEST.md
 
 # macOS
 .DS_Store

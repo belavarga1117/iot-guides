@@ -1,0 +1,25 @@
+graph TD
+    subgraph Arduino["Arduino: Single Thread"]
+        direction TB
+        A1["loop() starts"] --> A2["Update LED brightness"]
+        A2 --> A3{"Time for<br/>sensor read?"}
+        A3 -->|No| A5["delay(10)"]
+        A3 -->|Yes| A4["I2C Read: 13ms BLOCKED<br/>LED frozen, nothing runs"]
+        A4 --> A5
+        A5 --> A1
+    end
+
+    subgraph Zephyr["Zephyr: Three Threads"]
+        direction TB
+        Z1["LED Thread (prio 5)"] --> Z1a["PWM update every 10ms<br/>Never blocked by I2C"]
+        Z1a --> Z1
+        Z2["Sensor Thread (prio 7)"] --> Z2a["I2C read every 500ms<br/>Blocks only THIS thread"]
+        Z2a --> Z2
+        Z3["BLE Thread (prio 9)"] --> Z3a["Advertise every 1000ms<br/>Reads shared data via mutex"]
+        Z3a --> Z3
+    end
+
+    style A4 fill:#ff6b6b,color:#fff
+    style Z1a fill:#51cf66,color:#fff
+    style Z2a fill:#ffd43b,color:#333
+    style Z3a fill:#74c0fc,color:#333

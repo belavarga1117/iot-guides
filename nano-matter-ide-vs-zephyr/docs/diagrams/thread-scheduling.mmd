@@ -1,0 +1,24 @@
+gantt
+    title Zephyr Thread Scheduling Timeline (50ms window)
+    dateFormat X
+    axisFormat %Lms
+
+    section LED Thread
+    PWM update (prio 5)   :active, led1, 0, 2
+    Sleep 8ms             :done, leds1, 2, 10
+    PWM update            :active, led2, 10, 12
+    Sleep 8ms             :done, leds2, 12, 20
+    PWM update            :active, led3, 20, 22
+    Sleep 8ms             :done, leds3, 22, 30
+    PWM update            :active, led4, 30, 32
+    Sleep 8ms             :done, leds4, 32, 40
+    PWM update            :active, led5, 40, 42
+    Sleep 8ms             :done, leds5, 42, 50
+
+    section Sensor Thread
+    3x I2C Read 37ms (prio 7) :crit, sen1, 0, 37
+    Process + sleep            :done, senp1, 37, 50
+
+    section BLE Thread
+    Advertise (prio 9)    :active, ble1, 0, 3
+    Sleep 997ms           :done, bles1, 3, 50

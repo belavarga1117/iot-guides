@@ -1,0 +1,22 @@
+stateDiagram-v2
+    [*] --> EM0
+
+    EM0 : Active Mode — 1.3-2.6 mA
+    EM0 : 39 MHz (Arduino) / 78 MHz (Zephyr)
+
+    EM2 : Deep Sleep — ~1.3 µA
+    EM2 : RAM retained, peripherals off
+
+    EM0 --> EM2 : All threads sleeping — kernel idle
+    EM2 --> EM0 : Timer interrupt — next thread wakes
+
+    note right of EM0
+        Arduino stays here 100%.
+        delay() does NOT enter EM2.
+    end note
+
+    note right of EM2
+        Zephyr spends ~99% here.
+        Automatic with CONFIG_PM=y.
+        Zero code changes needed.
+    end note

@@ -1,0 +1,30 @@
+graph LR
+    subgraph BOARD["SiWx917 Dev Kit (BRD2605A)"]
+        direction TB
+        SIW["SiWx917 SoC<br/>(Wi-Fi 6 + BLE)"]
+        ULPI2C["ULP I2C Bus"]
+        LED["On-board LED<br/>(GPIO toggle)"]
+        SIW --> ULPI2C
+        SIW --> LED
+    end
+
+    subgraph SENSOR["SparkFun Grid-EYE"]
+        direction TB
+        GE["AMG8833<br/>8×8 Thermal Array"]
+        QC["Qwiic In"]
+        QC --> GE
+    end
+
+    subgraph USB["Host Computer"]
+        direction TB
+        MAC["💻 Mac / PC<br/>VS Code + Terminal"]
+        JLINK["J-Link / UART"]
+        MAC --> JLINK
+    end
+
+    ULPI2C -- "Qwiic Cable<br/>(I2C @ 0x69)" --> QC
+    SIW -- "USB-C Cable" --> JLINK
+
+    style SIW fill:#ff8c42,color:#fff
+    style GE fill:#ff8c42,color:#fff
+    style MAC fill:#74c0fc,color:#333

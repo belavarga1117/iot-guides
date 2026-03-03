@@ -1,0 +1,11 @@
+graph LR
+    NM1["🔵 Nano Matter #1<br/>Arduino Sketch"] -- "Grid-EYE" --> R1["❌ LED blinks at 12Hz<br/>loop() blocked by I2C"]
+    NM2["🟢 Nano Matter #2<br/>Zephyr RTOS"] -- "Grid-EYE" --> R2["✅ LED breathes smoothly<br/>3 threads, zero stutter"]
+    SIW["🟠 SiWx917 DK<br/>Zephyr RTOS"] -- "Grid-EYE" --> R3["✅ Same code runs<br/>on different SoC"]
+
+    style NM1 fill:#4a90d9,color:#fff
+    style NM2 fill:#51cf66,color:#fff
+    style SIW fill:#ff8c42,color:#fff
+    style R1 fill:#ff6b6b,color:#fff
+    style R2 fill:#51cf66,color:#fff
+    style R3 fill:#74c0fc,color:#fff

@@ -1,0 +1,30 @@
+graph LR
+    subgraph BOARD["Arduino Nano Matter + Carrier"]
+        direction TB
+        NM["Arduino Nano Matter<br/>(MGM240S SoC)"]
+        CAR["Carrier Board"]
+        QWIIC["Qwiic Connector<br/>(I2C: SDA/SCL)"]
+        NM --> CAR
+        CAR --> QWIIC
+    end
+
+    subgraph SENSOR["SparkFun Grid-EYE"]
+        direction TB
+        GE["AMG8833<br/>8×8 Thermal Array"]
+        QC["Qwiic In"]
+        QC --> GE
+    end
+
+    subgraph USB["Host Computer"]
+        direction TB
+        MAC["💻 Mac / PC<br/>VS Code + Terminal"]
+        SERIAL["Serial Monitor<br/>/dev/cu.usbmodem*"]
+        MAC --> SERIAL
+    end
+
+    QWIIC -- "Qwiic Cable<br/>(I2C @ 0x69)" --> QC
+    NM -- "USB-C Cable" --> SERIAL
+
+    style NM fill:#4a90d9,color:#fff
+    style GE fill:#ff8c42,color:#fff
+    style MAC fill:#74c0fc,color:#333

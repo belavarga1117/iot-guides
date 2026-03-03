@@ -1,0 +1,24 @@
+/*
+ * Devicetree overlay for SiWx917 Dev Kit (BRD2605A)
+ *
+ * Adds the Grid-EYE AMG8833 thermal sensor to the existing ULP I2C bus.
+ * The SiWx917 DK already has two sensors on this bus:
+ *   - VEML6035 ambient light sensor at 0x29
+ *   - Si7021 humidity/temp sensor at 0x40
+ * We add the Grid-EYE at 0x69 — no address conflict.
+ *
+ * The int-gpios property points to an unused GPIO (PA0).
+ * Polling mode only — no physical interrupt connection needed.
+ *
+ * THIS IS THE PORTABILITY DEMO:
+ * Same application code (src/main.c), different overlay file.
+ * The sensor subsystem API is identical — only the I2C bus binding changes.
+ */
+
+&ulpi2c {
+	amg88xx: amg88xx@69 {
+		compatible = "panasonic,amg88xx";
+		reg = <0x69>;
+		int-gpios = <&gpioa 0 GPIO_ACTIVE_LOW>;
+	};
+};

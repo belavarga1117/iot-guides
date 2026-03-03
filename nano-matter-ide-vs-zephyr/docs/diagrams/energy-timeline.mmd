@@ -1,0 +1,19 @@
+gantt
+    title CPU Power Mode: 50ms Window
+    dateFormat x
+    axisFormat %L ms
+
+    section Arduino (EM0 100%)
+    EM0 Active — 1.3 mA continuous :crit, a1, 0, 50
+
+    section Zephyr (EM0 + EM2)
+    LED work      :active, z1, 0, 1
+    EM2 sleep     :done, z2, 1, 10
+    LED work      :active, z3, 10, 11
+    EM2 sleep     :done, z4, 11, 20
+    LED work      :active, z5, 20, 21
+    EM2 sleep     :done, z6, 21, 30
+    LED work      :active, z7, 30, 31
+    EM2 sleep     :done, z8, 31, 40
+    LED work      :active, z9, 40, 41
+    EM2 sleep     :done, z10, 41, 50

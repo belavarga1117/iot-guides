@@ -1,0 +1,21 @@
+/*
+ * Devicetree overlay for Arduino Nano Matter
+ *
+ * Enables I2C0 and adds the Grid-EYE AMG8833 thermal sensor.
+ * I2C0 pins: SDA = PA6 (A4), SCL = PA7 (A5) — connected via Qwiic on Carrier.
+ * Grid-EYE address: 0x69 (NOT the more common 0x68).
+ *
+ * The int-gpios property points to an unused pin (PD2 = D6).
+ * We use polling mode (AMG88XX_TRIGGER_NONE in Kconfig), so the
+ * interrupt line is not physically connected — but the DT binding requires it.
+ */
+
+&i2c0 {
+	status = "okay";
+
+	amg88xx: amg88xx@69 {
+		compatible = "panasonic,amg88xx";
+		reg = <0x69>;
+		int-gpios = <&gpiod 2 GPIO_ACTIVE_LOW>;
+	};
+};

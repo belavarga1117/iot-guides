@@ -148,6 +148,7 @@ You'll need to purchase the following components. Everything connects with plug-
 | <img src="https://media-cdn.seeedstudio.com/media/catalog/product/cache/7f7f32ef807b8c2c2215b49801c56084/n/e/new-1-102010590-seeed-studio-xiao-mg24_1.jpg" width="70" style="border-radius:4px"> | [Seeed XIAO MG24 Sense](https://www.seeedstudio.com/Seeed-Studio-XIAO-MG24-p-6247.html) | [seeedstudio.com](https://www.seeedstudio.com/Seeed-Studio-XIAO-MG24-p-6247.html) | Thread radio (Border Router) | ~$8 |
 | <img src="https://www.sparkfun.com/media/catalog/product/cache/718ea26577a2279ce068787fe5be470f/M/G/MGM240P_Thing_Plus-_08.jpg" width="70" style="border-radius:4px"> | [SparkFun Thing Plus Matter](https://www.sparkfun.com/products/20270) (MGM240P) ×2 | [sparkfun.com](https://www.sparkfun.com/products/20270) | Sensor nodes 1 & 2 | ~$25 each |
 | <img src="https://store.arduino.cc/cdn/shop/files/ABX00112_00.default_14975317-9791-4c15-8ff6-96b39913bb45_1200x900.jpg?v=1733217451" width="70" style="border-radius:4px"> | [Arduino Nano Matter](https://store.arduino.cc/products/nano-matter) (MGM240S) | [store.arduino.cc](https://store.arduino.cc/products/nano-matter) | Sensor node 3 | ~$18 |
+| <img src="https://store.arduino.cc/cdn/shop/files/ASX00061_00.front.jpg?v=1747835929" width="70" style="border-radius:4px"> | [Arduino Nano Connector Carrier](https://store.arduino.cc/products/nano-connector-carrier) | [store.arduino.cc](https://store.arduino.cc/products/nano-connector-carrier) | Qwiic port for Nano Matter | ~$9 |
 | <img src="https://www.sparkfun.com/media/catalog/product/cache/718ea26577a2279ce068787fe5be470f/1/4/14607-SparkFun_GridEYE_Infrared_Array_-_AMG8833__Qwiic_-01.jpg" width="70" style="border-radius:4px"> | [SparkFun Grid-EYE AMG8833 Qwiic](https://www.sparkfun.com/products/14607) ×3 | [sparkfun.com](https://www.sparkfun.com/products/14607) | 8×8 thermal camera | ~$40 each |
 | <img src="https://www.sparkfun.com/media/catalog/product/cache/718ea26577a2279ce068787fe5be470f/2/2/22395-_SEN_Qwiic_SCD40-_01.jpg" width="70" style="border-radius:4px"> | [SparkFun SCD40 CO₂ Sensor Qwiic](https://www.sparkfun.com/products/22395) | [sparkfun.com](https://www.sparkfun.com/products/22395) | CO₂ + humidity + temp | ~$50 |
 | <img src="https://store.arduino.cc/cdn/shop/files/ABX00102_01.iso_1200x900.jpg?v=1747144655" width="70" style="border-radius:4px"> | [Arduino Modulino Distance](https://store.arduino.cc/products/modulino-distance) | [store.arduino.cc](https://store.arduino.cc/products/modulino-distance) | ToF proximity sensor | ~$10 |
@@ -157,7 +158,7 @@ You'll need to purchase the following components. Everything connects with plug-
 | <img src="https://www.sparkfun.com/media/catalog/product/cache/718ea26577a2279ce068787fe5be470f/1/4/14427-Qwiic_Cable_-_100mm-01.jpg" width="70" style="border-radius:4px"> | [Qwiic/STEMMA QT cables](https://www.sparkfun.com/products/14427) ×9 | [sparkfun.com](https://www.sparkfun.com/products/14427) | Sensor connections | ~$2 each |
 | <img src="https://cdn-shop.adafruit.com/970x728/4199-01.jpg" width="70" style="border-radius:4px"> | USB-C cables ×4 | Any electronics store | Connect boards to computer | ~$5 each |
 
-**Total: ~$475** (all plug-and-play, zero soldering)
+**Total: ~$484** (all plug-and-play, zero soldering)
 
 ### What You Need (On Your Computer)
 
